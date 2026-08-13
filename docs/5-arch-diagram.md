@@ -1,8 +1,9 @@
 # TeamBab 기술 아키텍처 다이어그램
 
-| 버전 | 날짜 | 변경 내용 |
-|---|---|---|
-| 1.0 | 2026-08-13 | 최초 작성 (도메인 정의서 v1.3, PRD v1.1, 프로젝트 구조 원칙 기반) |
+| 버전 | 날짜       | 변경 내용                                                         |
+| ---- | ---------- | ----------------------------------------------------------------- |
+| 1.1  | 2026-08-13 | 프론트엔드 컴포넌트 구조도 추가                                   |
+| 1.0  | 2026-08-13 | 최초 작성 (도메인 정의서 v1.3, PRD v1.1, 프로젝트 구조 원칙 기반) |
 
 > 5일/1인 개발 MVP 규모에 맞춰 최대한 단순하게 표현한다. 마이크로서비스, 캐시, 큐, 로드밸런서 등 이 프로젝트에 없는 요소나 Google Calendar/Slack 등 Out-of-Scope 연동은 넣지 않는다.
 
@@ -56,3 +57,48 @@ sequenceDiagram
 - 로그인은 access token(단기 만료) + refresh token(장기 만료, DB에 해시 저장)을 발급한다.
 - 이후 모든 요청은 access token을 route에서 검증(C1)한 뒤 service로 넘긴다.
 - 추천 결과는 service에서 매 요청 시 계산만 하고 DB에 저장하지 않는다(비영속).
+
+## 3. 프론트엔드 컴포넌트 구조 (`frontend/`)
+
+```mermaid
+flowchart TD
+    Auth["ProtectedRoute (인증 가드)"]
+
+    subgraph Pages["pages"]
+        Login["LoginPage (F0)"]
+        EventForm["EventFormPage (일정/예산 등록)"]
+        PrefForm["PreferenceFormPage (F1: 선호 의견)"]
+        Recommend["RecommendationPage (F1: 추천/확정)"]
+        ReviewForm["ReviewFormPage (F2: 만족도 평가)"]
+    end
+
+    subgraph Components["components"]
+        RestCard["RestaurantCard"]
+        Star["StarRating"]
+    end
+
+    subgraph ApiHooks["api / hooks"]
+        AuthApi["authApi"]
+        EventApi["eventApi"]
+        PrefApi["preferenceApi"]
+        RecApi["recommendationApi"]
+        ReviewApi["reviewApi"]
+        UseAuth["useAuth (토큰 관리)"]
+    end
+
+    Auth --> EventForm & PrefForm & Recommend & ReviewForm
+
+    Login --> AuthApi
+    Login --> UseAuth
+    EventForm --> EventApi
+    PrefForm --> PrefApi
+    Recommend --> RecApi
+    Recommend --> RestCard
+    ReviewForm --> ReviewApi
+    ReviewForm --> Star
+    EventForm & PrefForm & Recommend & ReviewForm --> UseAuth
+```
+
+- **pages**: 라우트 단위 화면. `ProtectedRoute`가 로그인 화면을 제외한 나머지 화면 접근 전 인증 여부를 확인한다.
+- **components**: 특정 화면에 종속되지 않는 재사용 UI. `RecommendationPage`는 `RestaurantCard`를, `ReviewFormPage`는 `StarRating`을 사용한다.
+- **api / hooks**: 각 화면은 해당 도메인의 api 모듈만 호출한다(화면↔api 1:1). `useAuth`는 로그인 이후 모든 인증 필요 화면에서 access/refresh token 상태를 관리한다.
