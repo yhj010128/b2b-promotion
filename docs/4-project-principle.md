@@ -2,6 +2,7 @@
 
 | 버전 | 날짜 | 변경 내용 |
 |---|---|---|
+| 1.1 | 2026-08-13 | 최상위 디렉토리명을 backend/frontend로 확정, CORS 원칙 추가 |
 | 1.0 | 2026-08-13 | 최초 작성 (도메인 정의서 v1.3, PRD v1.1, 사용자 시나리오 기반) |
 
 > 본 문서는 `1-domain-definition.md`(도메인 정의서 v1.3), `2-PRD.md`(PRD v1.1), `3-user-scenario.md`를 기반으로, 5일/1인 개발 규모의 MVP에 맞는 실용적 구조 원칙만 정의한다. 이 규모를 넘어서는 레이어링·추상화·조직 규칙은 다루지 않는다.
@@ -70,7 +71,7 @@ pages(화면) → components(재사용 UI) → api(서버 호출) / hooks(상태
 
 ## 5. 설정/보안/운영 원칙
 
-- **환경변수**: `.env` 파일 1개로 관리(`DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_EXPIRES`(예: 15m), `JWT_REFRESH_EXPIRES`(예: 14d), `RECOMMEND_MIN_SCORE`(C5 기준 점수, 기본 2.5), `RECOMMEND_RECENT_VISIT_COUNT`(C5 기준 방문 횟수, 기본 3)). `.env`는 `.gitignore`에 포함하고 `.env.example`만 커밋한다.
+- **환경변수**: `.env` 파일 1개로 관리(`DATABASE_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_EXPIRES`(예: 15m), `JWT_REFRESH_EXPIRES`(예: 14d), `RECOMMEND_MIN_SCORE`(C5 기준 점수, 기본 2.5), `RECOMMEND_RECENT_VISIT_COUNT`(C5 기준 방문 횟수, 기본 3), `CLIENT_ORIGIN`(CORS 허용 오리진)). `.env`는 `.gitignore`에 포함하고 `.env.example`만 커밋한다.
 - **JWT 토큰 처리** (PRD 6장 기준)
   - access token: 로그인 성공 시 발급, 역할(팀장/팀원) 클레임 포함, 요청마다 `Authorization: Bearer <token>` 헤더로 검증(인증 미들웨어, C1).
   - refresh token: `users` 테이블에 해시(bcrypt 등)로 저장, `/api/auth/refresh` 전용 — access token 재발급에만 사용.
@@ -78,13 +79,14 @@ pages(화면) → components(재사용 UI) → api(서버 호출) / hooks(상태
 - **C5 임계값**: 팀장용 설정 화면이나 별도 설정 테이블을 만들지 않고 환경변수 상수로만 관리(PRD 6장 결정 그대로).
 - **비밀번호/시크릿**: 비밀번호는 bcrypt 해시 저장, JWT 시크릿은 환경변수로만 관리하고 코드/레포에 하드코딩하지 않는다.
 - **배포/운영**: 별도 CI/CD 파이프라인, 컨테이너 오케스트레이션(K8s 등) 구축은 이번 범위에서 하지 않는다. 단일 Express 서버 + PostgreSQL 인스턴스로 충분하며, 상태 비저장(stateless) API 구조만 지킨다(PRD 5장).
+- **CORS**: `frontend/`(React SPA)와 `backend/`(Express API)가 별도 오리진으로 배포되므로 `cors` 미들웨어로 프론트 오리진만 허용한다(`CLIENT_ORIGIN` 환경변수, `credentials: true`로 access/refresh token 쿠키·헤더 전달 허용). `*` 와일드카드 허용은 인증 토큰을 다루는 API 특성상 사용하지 않는다.
 
 ## 6. 디렉토리 구조
 
-### 백엔드 (`server/`)
+### 백엔드 (`backend/`)
 
 ```
-server/
+backend/
 ├── src/
 │   ├── routes/
 │   │   ├── auth.route.js          # F0: login, refresh
@@ -119,10 +121,10 @@ server/
 └── package.json
 ```
 
-### 프론트엔드 (`client/`)
+### 프론트엔드 (`frontend/`)
 
 ```
-client/
+frontend/
 ├── src/
 │   ├── pages/
 │   │   ├── LoginPage.tsx           # F0
