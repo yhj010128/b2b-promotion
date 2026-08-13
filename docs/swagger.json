@@ -1,0 +1,614 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "TeamBab API",
+    "version": "1.0.0",
+    "description": "TeamBab 회식 의사결정 지원 API.\n\n- F0: 로그인 (JWT access/refresh token) — 수용 기준 C1\n- F1: 선호 의견 기반 추천 및 확정 — 수용 기준 C2, C3, C5, C6\n- F2: 만족도 평가 및 다음 추천 반영 — 수용 기준 C4, C5\n\n근거 문서: docs/1-domain-definition.md(v1.6), docs/2-PRD.md(v1.2), docs/4-project-principle.md 3장, docs/7-erd.md, docs/8-schema.sql, docs/9-plan.md.\n추천 결과는 비영속이므로 저장 엔드포인트를 두지 않는다."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "TeamBab 백엔드 (Express)"
+    }
+  ],
+  "tags": [
+    { "name": "auth", "description": "F0 로그인/토큰 재발급" },
+    { "name": "events", "description": "회식 일정 (F1 부속 데이터, 상태 전이)" },
+    { "name": "preferences", "description": "F1 선호 의견" },
+    { "name": "recommendations", "description": "F1 추천 결과 (비영속)" },
+    { "name": "reviews", "description": "F2 만족도 평가" }
+  ],
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "tags": ["auth"],
+        "security": [],
+        "summary": "로그인 (F0)",
+        "description": "로그인id/비밀번호로 인증하고 access token(역할 클레임 포함) + refresh token을 발급한다. 이후 모든 보호된 API는 이 access token이 필요하다(C1).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["login_id", "password"],
+                "properties": {
+                  "login_id": { "type": "string", "example": "leader01" },
+                  "password": { "type": "string", "format": "password", "example": "pass1234" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "로그인 성공 — 토큰 발급",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LoginResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": {
+            "description": "아이디 또는 비밀번호가 올바르지 않음",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "message": "아이디 또는 비밀번호가 올바르지 않습니다" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "tags": ["auth"],
+        "security": [],
+        "summary": "access token 재발급 (F0)",
+        "description": "refresh token을 검증해 access token을 재발급하고 refresh token을 회전(rotation)한다. 이전 refresh token은 무효화된다.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["refresh_token"],
+                "properties": {
+                  "refresh_token": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "재발급 성공 (refresh token 회전 포함)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TokenPair" }
+              }
+            }
+          },
+          "401": {
+            "description": "refresh token이 유효하지 않거나 만료됨(회전으로 무효화된 토큰 포함)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "message": "인증이 필요합니다" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/events": {
+      "post": {
+        "tags": ["events"],
+        "summary": "회식 일정 등록 (팀장 전용, F1 부속)",
+        "description": "팀장이 날짜/예산(1인당)/인원을 등록한다. 상태는 `모집중`으로 저장된다. 예산은 미입력(null) 상태로도 저장 가능하며, 이 경우 추천 요청 시 C3 오류가 발생한다. 미인증은 401(C1), 팀원 호출은 403.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["event_date", "headcount"],
+                "properties": {
+                  "event_date": { "type": "string", "format": "date", "example": "2026-08-20" },
+                  "budget_per_person": {
+                    "type": "integer",
+                    "nullable": true,
+                    "description": "1인당 예산(원). 미입력 시 null",
+                    "example": 30000
+                  },
+                  "headcount": { "type": "integer", "example": 6 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "등록 성공 (상태 `모집중`)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Event" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/events/{id}": {
+      "get": {
+        "tags": ["events"],
+        "summary": "회식 일정 상세 조회 (팀장/팀원 공통)",
+        "description": "회식 일정의 날짜/예산/인원/상태/확정식당을 조회한다. 화면에서 상태값(`모집중`/`확정`/`종료`)을 그대로 표시하고, 평가 화면의 C4 판단 근거로도 사용한다. 미인증은 401(C1).",
+        "parameters": [{ "$ref": "#/components/parameters/EventId" }],
+        "responses": {
+          "200": {
+            "description": "조회 성공",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Event" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/events/{id}/preferences": {
+      "post": {
+        "tags": ["preferences"],
+        "summary": "선호 의견 제출 (F1)",
+        "description": "로그인한 사용자(팀장·팀원 모두)가 희망 메뉴/식당과 못 먹는 음식을 제출한다. 사용자 식별은 access token에서 하므로 user_id를 바디로 받지 않는다. 미인증은 401(C1).",
+        "parameters": [{ "$ref": "#/components/parameters/EventId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "wanted_menu": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "희망 메뉴/식당",
+                    "example": "삼겹살"
+                  },
+                  "disliked_food": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "못 먹는 음식/알레르기",
+                    "example": "해산물"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "제출 성공",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Preference" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/events/{id}/recommendations": {
+      "get": {
+        "tags": ["recommendations"],
+        "summary": "추천 결과 조회 (F1, 비영속)",
+        "description": "예산 필터 → C5 가중치 정렬 순으로 매 호출 시 계산해 후보 목록을 반환한다(DB에 저장하지 않음).\n\n- C3: 예산 미입력 상태면 400 + \"예산을 먼저 입력하세요\", 추천을 실행하지 않는다.\n- C5: 누적 평균 만족도가 기준 미만이거나 최근 방문 이력이 있는 식당은 제외하지 않고 최하위 순번으로 배치한다(`lowest_priority: true`).\n- C6: 후보가 0건이면 오류가 아니라 안내다. 200 + 빈 배열 + message \"조건에 맞는 추천 결과가 없습니다\"를 반환하고, 팀장은 수동 확정으로 진행한다.",
+        "parameters": [{ "$ref": "#/components/parameters/EventId" }],
+        "responses": {
+          "200": {
+            "description": "추천 결과 (후보 0건인 C6 상황도 200으로 반환)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RecommendationResponse" },
+                "examples": {
+                  "후보있음": {
+                    "summary": "정상 추천 (C5 정렬 반영)",
+                    "value": {
+                      "event_id": 1,
+                      "recommendations": [
+                        {
+                          "restaurant_id": 3,
+                          "name": "한우담",
+                          "cost_per_person": 30000,
+                          "avg_satisfaction_score": 4.5,
+                          "last_visited_at": "2026-02-10",
+                          "score": 92.5,
+                          "lowest_priority": false
+                        },
+                        {
+                          "restaurant_id": 7,
+                          "name": "옛날국밥",
+                          "cost_per_person": 12000,
+                          "avg_satisfaction_score": 2.1,
+                          "last_visited_at": "2026-08-01",
+                          "score": 31.0,
+                          "lowest_priority": true
+                        }
+                      ],
+                      "message": null
+                    }
+                  },
+                  "C6_후보0건": {
+                    "summary": "C6 — 예산 조건을 만족하는 후보 0건 (오류 아님, 안내)",
+                    "value": {
+                      "event_id": 1,
+                      "recommendations": [],
+                      "message": "조건에 맞는 추천 결과가 없습니다"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "C3 — 예산 미입력 상태에서 추천 요청 (추천 미실행)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "message": "예산을 먼저 입력하세요" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/events/{id}/confirm": {
+      "post": {
+        "tags": ["events"],
+        "summary": "식당 확정 (팀장 전용, F1)",
+        "description": "팀장이 식당을 확정한다. `confirmed_restaurant_id`가 저장되고 상태가 `확정`으로 전이되며, 해당 식당의 최근 방문 이력이 갱신되어 다음 추천의 C5 판단에 반영된다.\n\n- C2: 팀원이 호출하면 403 \"권한이 없습니다\", 데이터는 변경되지 않는다.\n- C6: 추천 후보가 0건이어도 팀장이 restaurant_id를 직접 지정해 수동 확정할 수 있다(동일 엔드포인트).",
+        "parameters": [{ "$ref": "#/components/parameters/EventId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["restaurant_id"],
+                "properties": {
+                  "restaurant_id": {
+                    "type": "integer",
+                    "description": "확정할 식당 id. 추천 후보 중 하나이거나, C6 상황에서는 팀장이 직접 지정한 식당",
+                    "example": 3
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "확정 성공 (상태 `확정`)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Event" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": {
+            "description": "C2 — 팀원이 확정 시도 (확정 불가)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "message": "권한이 없습니다" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/events/{id}/close": {
+      "post": {
+        "tags": ["events"],
+        "summary": "회식 종료 처리 (팀장 전용, F2 선행 조건)",
+        "description": "팀장이 회식을 `종료` 상태로 전이시킨다(9-plan.md B-3). 이 처리가 끝나야 만족도 평가 입력이 가능하다(C4). 팀원 호출은 403.",
+        "parameters": [{ "$ref": "#/components/parameters/EventId" }],
+        "responses": {
+          "200": {
+            "description": "종료 처리 성공 (상태 `종료`)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Event" }
+              }
+            }
+          },
+          "400": {
+            "description": "확정되지 않은 회식을 종료하려는 등 상태 전이가 불가능한 요청",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/events/{id}/reviews": {
+      "post": {
+        "tags": ["reviews"],
+        "summary": "만족도 평가 입력 (F2)",
+        "description": "회식 종료 후 별점(1~5)과 한줄평을 입력한다. `restaurant_id`는 해당 회식의 확정식당id를 서버가 복사해 기록하므로 요청 바디로 받지 않는다. 저장 후 식당 단위 누적 평균 만족도가 갱신되어 다음 추천의 C5 판정에 반영된다.\n\n- C4: 회식 상태가 `종료`가 아니면 400 + \"회식 종료 후 평가 가능\"으로 입력을 거부한다.",
+        "parameters": [{ "$ref": "#/components/parameters/EventId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["rating"],
+                "properties": {
+                  "rating": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5,
+                    "description": "별점 1~5 (필수)",
+                    "example": 4
+                  },
+                  "comment": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "한줄평 (선택)",
+                    "example": "고기 질이 좋았어요"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "평가 저장 성공",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Review" }
+              }
+            }
+          },
+          "400": {
+            "description": "C4 — 회식 상태가 `종료`가 아님, 또는 별점 범위(1~5) 위반",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "examples": {
+                  "C4_종료전평가": {
+                    "summary": "C4 — 상태가 `모집중`/`확정`일 때",
+                    "value": { "message": "회식 종료 후 평가 가능" }
+                  },
+                  "별점범위위반": {
+                    "value": { "message": "별점은 1~5 사이여야 합니다" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "로그인 시 발급된 access token을 `Authorization: Bearer <token>` 헤더로 전달한다. 역할(`팀장`/`팀원`) 클레임을 포함한다. 누락/만료 시 401(C1)."
+      }
+    },
+    "parameters": {
+      "EventId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "회식 일정 id",
+        "schema": { "type": "integer" }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "C1 — 미인증(토큰 없음/만료/무효). 로그인 화면으로 이동",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "message": "인증이 필요합니다" }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "권한 없음 (팀장 전용 기능을 팀원이 호출)",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "message": "권한이 없습니다" }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "대상 리소스를 찾을 수 없음",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": { "message": "대상을 찾을 수 없습니다" }
+          }
+        }
+      },
+      "BadRequest": {
+        "description": "요청 값이 올바르지 않음",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "description": "오류 응답. message는 도메인 정의서의 한국어 문구를 그대로 사용한다.",
+        "required": ["message"],
+        "properties": {
+          "message": { "type": "string", "example": "예산을 먼저 입력하세요" }
+        }
+      },
+      "User": {
+        "type": "object",
+        "description": "사용자. password_hash, refresh_token_hash는 응답에 절대 포함하지 않는다.",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "login_id": { "type": "string", "example": "leader01" },
+          "name": { "type": "string", "example": "김팀장" },
+          "role": { "type": "string", "enum": ["팀장", "팀원"], "example": "팀장" }
+        }
+      },
+      "TokenPair": {
+        "type": "object",
+        "properties": {
+          "access_token": { "type": "string", "description": "역할 클레임 포함, 단기 만료(예: 15m)" },
+          "refresh_token": { "type": "string", "description": "장기 만료(예: 14d), access token 재발급 전용" }
+        }
+      },
+      "LoginResponse": {
+        "allOf": [
+          { "$ref": "#/components/schemas/TokenPair" },
+          {
+            "type": "object",
+            "properties": {
+              "user": { "$ref": "#/components/schemas/User" }
+            }
+          }
+        ]
+      },
+      "Event": {
+        "type": "object",
+        "description": "회식 일정 (테이블: events)",
+        "properties": {
+          "id": { "type": "integer", "example": 1 },
+          "event_date": { "type": "string", "format": "date", "example": "2026-08-20" },
+          "budget_per_person": {
+            "type": "integer",
+            "nullable": true,
+            "description": "1인당 예산(원). null이면 추천 요청 시 C3 오류",
+            "example": 30000
+          },
+          "headcount": { "type": "integer", "example": 6 },
+          "status": { "type": "string", "enum": ["모집중", "확정", "종료"], "example": "모집중" },
+          "confirmed_restaurant_id": {
+            "type": "integer",
+            "nullable": true,
+            "description": "확정 전에는 null",
+            "example": null
+          }
+        }
+      },
+      "Preference": {
+        "type": "object",
+        "description": "선호 의견 (테이블: preferences)",
+        "properties": {
+          "id": { "type": "integer", "example": 10 },
+          "event_id": { "type": "integer", "example": 1 },
+          "user_id": { "type": "integer", "example": 2 },
+          "wanted_menu": { "type": "string", "nullable": true, "example": "삼겹살" },
+          "disliked_food": { "type": "string", "nullable": true, "example": "해산물" }
+        }
+      },
+      "Recommendation": {
+        "type": "object",
+        "description": "추천 후보 1건. 비영속 — 요청 시점에 계산해 응답으로만 반환하며 DB에 저장하지 않는다.",
+        "properties": {
+          "restaurant_id": { "type": "integer", "example": 3 },
+          "name": { "type": "string", "example": "한우담" },
+          "cost_per_person": {
+            "type": "integer",
+            "description": "1인 예상 비용(원). 회식 일정의 budget_per_person 이하인 식당만 후보가 된다(C3/C6). 추천 카드의 \"예상 1인 비용\" 표시값",
+            "example": 30000
+          },
+          "avg_satisfaction_score": {
+            "type": "number",
+            "format": "float",
+            "nullable": true,
+            "description": "식당 단위 누적 평균 별점(1~5)",
+            "example": 4.5
+          },
+          "last_visited_at": {
+            "type": "string",
+            "format": "date",
+            "nullable": true,
+            "description": "최근 방문일",
+            "example": "2026-02-10"
+          },
+          "score": { "type": "number", "format": "float", "description": "추천 점수(정렬 기준)", "example": 92.5 },
+          "lowest_priority": {
+            "type": "boolean",
+            "description": "C5 — 누적 평균 만족도 기준 미만이거나 최근 방문 이력이 있어 최하위로 배치된 후보(제외 아님)",
+            "example": false
+          }
+        }
+      },
+      "RecommendationResponse": {
+        "type": "object",
+        "description": "추천 결과 응답. C6(후보 0건)은 오류가 아니라 안내이므로 200 + 빈 배열 + message로 표현한다.",
+        "properties": {
+          "event_id": { "type": "integer", "example": 1 },
+          "recommendations": {
+            "type": "array",
+            "description": "C5 가중치 정렬 순 후보 목록. 후보가 없으면 빈 배열(C6)",
+            "items": { "$ref": "#/components/schemas/Recommendation" }
+          },
+          "message": {
+            "type": "string",
+            "nullable": true,
+            "description": "후보 0건일 때 \"조건에 맞는 추천 결과가 없습니다\", 그 외에는 null",
+            "example": null
+          }
+        }
+      },
+      "Review": {
+        "type": "object",
+        "description": "만족도 평가 (테이블: reviews)",
+        "properties": {
+          "id": { "type": "integer", "example": 20 },
+          "event_id": { "type": "integer", "example": 1 },
+          "user_id": { "type": "integer", "example": 2 },
+          "restaurant_id": {
+            "type": "integer",
+            "description": "회식 확정 시점의 확정식당id를 서버가 복사해 저장",
+            "example": 3
+          },
+          "rating": { "type": "integer", "minimum": 1, "maximum": 5, "example": 4 },
+          "comment": { "type": "string", "nullable": true, "example": "고기 질이 좋았어요" }
+        }
+      }
+    }
+  }
+}

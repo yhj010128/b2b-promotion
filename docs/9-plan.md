@@ -41,13 +41,15 @@ flowchart LR
   - `backend/migrations/001_init.sql`에 `docs/8-schema.sql` 내용 배치 후 실행
   - `DATABASE_URL` 환경변수 정의 및 `.env.example` 등록
 - **완료 조건**
-  - [ ] `users`, `restaurants`, `events`, `preferences`, `reviews` 5개 테이블이 생성됨
-  - [ ] `events.status` CHECK 제약이 `모집중/확정/종료`만 허용함
-  - [ ] `users.role` CHECK 제약이 `팀장/팀원`만 허용함
-  - [ ] `reviews.rating` CHECK 제약이 1~5만 허용함
-  - [ ] `events.confirmed_restaurant_id`가 NULL 허용 FK로 동작함
-  - [ ] `reviews.restaurant_id`가 `restaurants(id)` FK로 동작함
-  - [ ] 추천 결과 테이블이 존재하지 않음(비영속 결정 준수)
+  - [x] `users`, `restaurants`, `events`, `preferences`, `reviews` 5개 테이블이 생성됨
+  - [x] `users`에 `login_id`(UNIQUE), `password_hash` 컬럼이 존재함(F0 로그인 전제)
+  - [x] `restaurants.cost_per_person`이 존재함(예산 필터 C3/C6의 비교 기준)
+  - [x] `events.status` CHECK 제약이 `모집중/확정/종료`만 허용함
+  - [x] `users.role` CHECK 제약이 `팀장/팀원`만 허용함
+  - [x] `reviews.rating` CHECK 제약이 1~5만 허용함
+  - [x] `events.confirmed_restaurant_id`가 NULL 허용 FK로 동작함
+  - [x] `reviews.restaurant_id`가 `restaurants(id)` FK로 동작함
+  - [x] 추천 결과 테이블이 존재하지 않음(비영속 결정 준수)
 
 ### D-2. 시드 데이터 투입
 - **선행 Task**: D-1
@@ -56,9 +58,9 @@ flowchart LR
   - 식당 8~10개 INSERT(1인 예상 비용대·누적 평균 만족도·최근 방문일을 서로 다르게 구성)
   - C5 검증용 데이터 포함: 만족도 2.5점 미만 식당 1개 이상, 최근 3회 이내 방문 식당 1개 이상
 - **완료 조건**
-  - [ ] 팀장/팀원 계정으로 각각 로그인 가능한 사용자 레코드가 존재함
-  - [ ] 식당 데이터가 8개 이상이며 만족도 점수 분포가 2.5점 위/아래로 나뉨
-  - [ ] C6(0건) 재현이 가능한 예산 구간이 존재함(모든 식당보다 낮은 예산 입력 시 후보 0건)
+  - [x] 팀장/팀원 계정으로 각각 로그인 가능한 사용자 레코드가 존재함
+  - [x] 식당 데이터가 8개 이상이며 만족도 점수 분포가 2.5점 위/아래로 나뉨
+  - [x] C6(0건) 재현이 가능한 예산 구간이 존재함(모든 식당보다 낮은 예산 입력 시 후보 0건)
 
 ---
 
@@ -97,7 +99,8 @@ flowchart LR
 - **작업**
   - `POST /api/events`(팀장 전용): 날짜/예산/인원 등록, 상태 기본값 `모집중`
   - `GET /api/events/:id`: 일정 상세 조회(팀장/팀원 공통)
-  - 상태 전이 처리: 확정 시 `확정`, 회식 종료 처리 시 `종료`(팀장이 수행)
+  - `POST /api/events/:id/close`(팀장 전용): 상태를 `종료`로 전이(자동 전이 없음). `확정` 상태에서만 허용
+  - 상태 전이 처리: 확정 시 `확정`(B-6), 종료 처리 시 `종료`(팀장이 수행)
 - **완료 조건**
   - [ ] 팀장이 일정을 등록하면 상태가 `모집중`으로 저장됨
   - [ ] 예산 미입력(NULL) 상태로도 일정 저장이 가능함
