@@ -1,9 +1,11 @@
 -- TeamBab 데이터베이스 스키마 (PostgreSQL 17)
--- 근거: docs/7-erd.md, docs/1-domain-definition.md(v1.3) 5장, docs/4-project-principle.md 3장(네이밍 원칙)
+-- 근거: docs/7-erd.md, docs/1-domain-definition.md(v1.4) 5장, docs/4-project-principle.md 3장(네이밍 원칙)
 -- 추천 결과는 비영속이므로 테이블 없음. 설정/감사로그 테이블도 만들지 않음(오버엔지니어링 금지).
 
 CREATE TABLE users (
     id                  SERIAL PRIMARY KEY,
+    login_id            TEXT NOT NULL UNIQUE,
+    password_hash       TEXT NOT NULL,                                  -- bcrypt 해시 (F0)
     name                TEXT NOT NULL,
     role                TEXT NOT NULL CHECK (role IN ('팀장', '팀원')),
     refresh_token_hash  TEXT
