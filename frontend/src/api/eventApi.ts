@@ -34,3 +34,8 @@ export async function getEvent(id: number | string): Promise<EventRecord> {
   const res = await request(`/api/events/${id}`);
   return toResult(res, '회식 일정 조회에 실패했습니다');
 }
+
+export async function closeEvent(id: number | string): Promise<EventRecord> {
+  const res = await request(`/api/events/${id}/close`, { method: 'POST' });
+  return toResult(res, '회식 종료 처리에 실패했습니다');
+}

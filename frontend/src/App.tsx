@@ -3,6 +3,7 @@ import { LoginPage } from './pages/LoginPage';
 import { EventFormPage } from './pages/EventFormPage';
 import { PreferenceFormPage } from './pages/PreferenceFormPage';
 import { RecommendationPage } from './pages/RecommendationPage';
+import { ReviewFormPage } from './pages/ReviewFormPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/AppLayout';
 
@@ -37,6 +38,16 @@ function App() {
             <ProtectedRoute>
               <AppLayout>
                 <RecommendationPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/review"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <ReviewFormPage />
               </AppLayout>
             </ProtectedRoute>
           }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { createEvent, getEvent, EventRecord } from '../api/eventApi';
+import { createEvent, getEvent, closeEvent, EventRecord } from '../api/eventApi';
 
 export function EventFormPage() {
   const { role } = useAuth();
@@ -22,6 +22,17 @@ export function EventFormPage() {
       .catch((err) => setError(err instanceof Error ? err.message : '회식 일정 조회에 실패했습니다'))
       .finally(() => setLoading(false));
   }, []);
+
+  async function handleClose() {
+    if (!event) return;
+    setError('');
+    try {
+      const closed = await closeEvent(event.id);
+      setEvent(closed);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '회식 종료 처리에 실패했습니다');
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -63,6 +74,12 @@ export function EventFormPage() {
           <label>상태</label>
           <p>{event.status}</p>
         </div>
+        {role === '팀장' && event.status === '확정' && (
+          <button type="button" onClick={handleClose}>
+            회식 종료 처리
+          </button>
+        )}
+        {error && <p className="error-message">{error}</p>}
       </div>
     );
   }
