@@ -74,11 +74,11 @@ flowchart LR
   - CORS 미들웨어: `CLIENT_ORIGIN`만 허용, `credentials: true`
   - `.env.example`에 전체 환경변수 등록(`DATABASE_URL`, `JWT_*`, `RECOMMEND_MIN_SCORE`, `RECOMMEND_RECENT_VISIT_COUNT`, `CLIENT_ORIGIN`)
 - **완료 조건**
-  - [ ] 서버가 지정 포트에서 기동되고 헬스 응답을 반환함
-  - [ ] `pool.js`를 통해 DB 연결이 성공함
-  - [ ] `CLIENT_ORIGIN` 외 오리진의 요청이 CORS로 차단됨(와일드카드 미사용)
-  - [ ] `.env`가 `.gitignore`에 포함되고 `.env.example`만 커밋됨
-  - [ ] 디렉토리가 `routes/ services/ db/ middleware/` 구조를 따름
+  - [x] 서버가 지정 포트에서 기동되고 헬스 응답을 반환함
+  - [x] `pool.js`를 통해 DB 연결이 성공함
+  - [x] `CLIENT_ORIGIN` 외 오리진의 요청이 CORS로 차단됨(와일드카드 미사용)
+  - [x] `.env`가 `.gitignore`에 포함되고 `.env.example`만 커밋됨
+  - [x] 디렉토리가 `routes/ services/ db/ middleware/` 구조를 따름(현재는 `db/`만 실존, `routes/services/middleware`는 B-2부터 생성 — 빈 폴더 미리 생성하지 않음)
 
 ### B-2. 인증(F0/C1) 구현
 - **선행 Task**: B-1
