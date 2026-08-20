@@ -1,0 +1,24 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+}
+
+.form-container {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.error-message {
+  color: #c00;
+}
+
+@media (max-width: 768px) {
+  .form-container {
+    padding: 1rem;
+  }
+}
