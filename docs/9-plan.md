@@ -88,11 +88,11 @@ flowchart LR
   - `POST /api/auth/refresh`: refresh token 검증 → access token 재발급 + refresh token 회전(rotation)
   - `src/middleware/auth.middleware.js`: `Authorization: Bearer` 검증, 실패 시 401
 - **완료 조건**
-  - [ ] 올바른 자격증명으로 로그인 시 access/refresh token이 발급됨
-  - [ ] **C1**: 토큰 없이 보호된 API 호출 시 401이 반환됨
-  - [ ] 만료된 access token으로 호출 시 401이 반환되고, refresh로 재발급 후 정상 처리됨
-  - [ ] 재발급 시 이전 refresh token이 무효화됨(rotation 동작)
-  - [ ] access token 페이로드에 역할(`팀장`/`팀원`)이 포함됨
+  - [x] 올바른 자격증명으로 로그인 시 access/refresh token이 발급됨
+  - [x] **C1**: 토큰 없이 보호된 API 호출 시 401이 반환됨
+  - [x] 만료된 access token으로 호출 시 401이 반환되고, refresh로 재발급 후 정상 처리됨
+  - [x] 재발급 시 이전 refresh token이 무효화됨(rotation 동작)
+  - [x] access token 페이로드에 역할(`팀장`/`팀원`)이 포함됨
 
 ### B-3. 회식 일정/예산 API
 - **선행 Task**: B-2, D-2
