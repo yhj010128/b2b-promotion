@@ -21,8 +21,24 @@ body {
   color: #080;
 }
 
+.restaurant-card-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.restaurant-card {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 1rem;
+}
+
 @media (max-width: 768px) {
   .form-container {
     padding: 1rem;
+  }
+
+  .restaurant-card-list {
+    grid-template-columns: 1fr;
   }
 }
