@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const authRouter = require('./routes/auth.route');
 const eventsRouter = require('./routes/events.route');
+const preferencesRouter = require('./routes/preferences.route');
 
 if (!process.env.CLIENT_ORIGIN) {
   throw new Error('CLIENT_ORIGIN 환경변수가 필요합니다');
@@ -28,5 +29,6 @@ app.get('/health', (req, res) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api/events', eventsRouter);
+app.use('/api/events', preferencesRouter);
 
 module.exports = app;
