@@ -52,11 +52,11 @@
           },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "401": {
-            "description": "아이디 또는 비밀번호가 올바르지 않음",
+            "description": "로그인id 또는 비밀번호가 올바르지 않음",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/Error" },
-                "example": { "message": "아이디 또는 비밀번호가 올바르지 않습니다" }
+                "example": { "message": "로그인id 또는 비밀번호가 올바르지 않습니다" }
               }
             }
           }
@@ -75,9 +75,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["refresh_token"],
+                "required": ["refreshToken"],
                 "properties": {
-                  "refresh_token": { "type": "string" }
+                  "refreshToken": { "type": "string" }
                 }
               }
             }
@@ -97,7 +97,7 @@
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/Error" },
-                "example": { "message": "인증이 필요합니다" }
+                "example": { "message": "유효하지 않은 refresh token입니다" }
               }
             }
           }
@@ -196,8 +196,8 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "제출 성공",
+          "200": {
+            "description": "제출 성공 (동일 사용자 재제출 시 기존 행을 갱신 — 신규/갱신 모두 200)",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/Preference" }
@@ -309,7 +309,15 @@
               }
             }
           },
-          "400": { "$ref": "#/components/responses/BadRequest" },
+          "400": {
+            "description": "restaurant_id 누락",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "message": "restaurant_id는 필수입니다" }
+              }
+            }
+          },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": {
             "description": "C2 — 팀원이 확정 시도 (확정 불가)",
@@ -320,7 +328,27 @@
               }
             }
           },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "404": {
+            "description": "존재하지 않는 회식 일정 또는 존재하지 않는 식당",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "examples": {
+                  "일정없음": { "value": { "message": "존재하지 않는 일정입니다" } },
+                  "식당없음": { "value": { "message": "존재하지 않는 식당입니다" } }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "회식 상태가 `모집중`이 아니어서 확정할 수 없음(이미 확정/종료됨)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "message": "모집중 상태에서만 확정할 수 있습니다" }
+              }
+            }
+          }
         }
       }
     },
@@ -339,17 +367,18 @@
               }
             }
           },
-          "400": {
-            "description": "확정되지 않은 회식을 종료하려는 등 상태 전이가 불가능한 요청",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Error" }
-              }
-            }
-          },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "403": { "$ref": "#/components/responses/Forbidden" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": {
+            "description": "회식 상태가 `확정`이 아니어서 종료할 수 없음",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" },
+                "example": { "message": "확정 상태에서만 종료할 수 있습니다" }
+              }
+            }
+          }
         }
       }
     },
@@ -455,11 +484,11 @@
         }
       },
       "NotFound": {
-        "description": "대상 리소스를 찾을 수 없음",
+        "description": "존재하지 않는 회식 일정",
         "content": {
           "application/json": {
             "schema": { "$ref": "#/components/schemas/Error" },
-            "example": { "message": "대상을 찾을 수 없습니다" }
+            "example": { "message": "존재하지 않는 일정입니다" }
           }
         }
       },
@@ -493,21 +522,14 @@
       },
       "TokenPair": {
         "type": "object",
+        "description": "로그인/재발급 응답. 필드명은 camelCase다(다른 엔드포인트의 snake_case 응답과 다름 — DB row를 그대로 반환하는 이벤트/의견/리뷰 응답과 달리 이 값은 서비스 계층에서 직접 조립되기 때문).",
         "properties": {
-          "access_token": { "type": "string", "description": "역할 클레임 포함, 단기 만료(예: 15m)" },
-          "refresh_token": { "type": "string", "description": "장기 만료(예: 14d), access token 재발급 전용" }
+          "accessToken": { "type": "string", "description": "역할 클레임 포함, 단기 만료(예: 15m)" },
+          "refreshToken": { "type": "string", "description": "장기 만료(예: 14d), access token 재발급 전용" }
         }
       },
       "LoginResponse": {
-        "allOf": [
-          { "$ref": "#/components/schemas/TokenPair" },
-          {
-            "type": "object",
-            "properties": {
-              "user": { "$ref": "#/components/schemas/User" }
-            }
-          }
-        ]
+        "allOf": [{ "$ref": "#/components/schemas/TokenPair" }]
       },
       "Event": {
         "type": "object",
