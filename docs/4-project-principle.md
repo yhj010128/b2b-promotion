@@ -2,6 +2,7 @@
 
 | 버전 | 날짜 | 변경 내용 |
 |---|---|---|
+| 1.4 | 2026-08-20 | 실제 백엔드 구현(B-1~B-7 완료)과 정합성 재검토: 6장 디렉토리 구조를 실제 파일 구조로 갱신 — `recommendations.route.js`/`confirm.route.js`/`confirm.service.js`는 실제로 만들지 않고 `events.route.js`/`event.service.js`에 통합됨, `server.js` 누락분 추가, 테스트 파일 목록을 실제 8개로 갱신 |
 | 1.3 | 2026-08-13 | docs 정합성 재검토: 엔드포인트 목록에 `POST /api/events/:id/close`(회식 종료 처리) 누락분 추가, 참조 도메인 정의서 버전 v1.6으로 갱신 |
 | 1.2 | 2026-08-13 | docs 전체 정합성 재검토: 참조 도메인 정의서 버전을 v1.4로 갱신(만족도평가-식당 FK 반영) |
 | 1.1 | 2026-08-13 | 최상위 디렉토리명을 backend/frontend로 확정, CORS 원칙 추가 |
@@ -93,17 +94,14 @@ backend/
 ├── src/
 │   ├── routes/
 │   │   ├── auth.route.js          # F0: login, refresh
-│   │   ├── events.route.js        # 회식 일정/예산 등록
+│   │   ├── events.route.js        # 회식 등록/조회/종료/확정/추천조회 — /:id/close, /:id/confirm, /:id/recommendations 전부 여기 포함(라우트 5개뿐이라 파일 분리 안 함)
 │   │   ├── preferences.route.js   # F1: 선호 의견 제출
-│   │   ├── recommendations.route.js # F1: 추천 결과 조회 (비영속)
-│   │   ├── confirm.route.js       # F1: 식당 확정 (C2, C6)
 │   │   └── reviews.route.js       # F2: 만족도 평가 입력 (C4)
 │   ├── services/
 │   │   ├── auth.service.js
-│   │   ├── event.service.js
+│   │   ├── event.service.js       # 등록/조회/종료/확정 로직 포함 (C2 확정 권한 판단 포함, 별도 confirm.service.js로 안 쪼갬)
 │   │   ├── preference.service.js
 │   │   ├── recommend.service.js   # 추천 계산 로직 (C3, C5, C6 핵심)
-│   │   ├── confirm.service.js     # 확정 권한/처리 로직 (C2)
 │   │   └── review.service.js      # 만족도 평가 저장 + 식당 평균 갱신 (C4)
 │   ├── db/
 │   │   ├── pool.js                # pg Pool 인스턴스
@@ -113,13 +111,20 @@ backend/
 │   │   ├── reviews.db.js
 │   │   └── restaurants.db.js
 │   ├── middleware/
-│   │   └── auth.middleware.js     # JWT 검증 (C1)
-│   └── app.js                     # Express 앱 초기화
+│   │   └── auth.middleware.js     # JWT 검증(C1) + requireRole (C2)
+│   ├── app.js                     # Express 앱 초기화, 라우터 마운트
+│   └── server.js                  # app.listen
 ├── migrations/
 │   └── 001_init.sql                # users, events, preferences, reviews, restaurants
 ├── tests/
-│   ├── recommend.service.test.js  # C3, C5, C6
-│   └── review.service.test.js
+│   ├── app.test.js                 # 헬스체크, CORS
+│   ├── auth.test.js                 # 로그인/재발급/rotation, C1
+│   ├── pool.test.js                 # DATABASE_URL/DB_CONN_STRING 폴백
+│   ├── events.test.js               # 등록/조회/종료
+│   ├── confirm.test.js              # 확정, C2/C6
+│   ├── preferences.test.js
+│   ├── recommend.service.test.js    # C3, C5, C6
+│   └── review.service.test.js       # C4, 누적 평균 갱신
 ├── .env.example
 └── package.json
 ```
