@@ -13,6 +13,17 @@ async function updateLastVisitedAt(id, date) {
   return result.rows[0];
 }
 
+async function recalculateAvgSatisfactionScore(id) {
+  const result = await pool.query(
+    `UPDATE restaurants
+     SET avg_satisfaction_score = (SELECT AVG(rating)::numeric(3,2) FROM reviews WHERE restaurant_id = $1)
+     WHERE id = $1
+     RETURNING *`,
+    [id]
+  );
+  return result.rows[0];
+}
+
 async function findByMaxCost(maxCost) {
   const result = await pool.query('SELECT * FROM restaurants WHERE cost_per_person <= $1', [maxCost]);
   return result.rows;
@@ -29,4 +40,10 @@ async function findRecentVisitedRestaurantIds(limit) {
   return result.rows.map((row) => row.confirmed_restaurant_id);
 }
 
-module.exports = { findById, updateLastVisitedAt, findByMaxCost, findRecentVisitedRestaurantIds };
+module.exports = {
+  findById,
+  updateLastVisitedAt,
+  recalculateAvgSatisfactionScore,
+  findByMaxCost,
+  findRecentVisitedRestaurantIds,
+};
