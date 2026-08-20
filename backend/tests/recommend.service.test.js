@@ -12,6 +12,9 @@ let baseUrl;
 
 let leaderToken;
 
+const createdEventIds = [];
+const createdRestaurantIds = [];
+
 before(async () => {
   server = http.createServer(app);
   await new Promise((resolve) => server.listen(0, resolve));
@@ -22,6 +25,13 @@ before(async () => {
 });
 
 after(async () => {
+  // 미래 날짜로 직접 삽입한 이벤트/식당은 "최근 방문" 판정 창을 오염시키므로 반드시 정리한다.
+  if (createdEventIds.length > 0) {
+    await pool.query('DELETE FROM events WHERE id = ANY($1)', [createdEventIds]);
+  }
+  if (createdRestaurantIds.length > 0) {
+    await pool.query('DELETE FROM restaurants WHERE id = ANY($1)', [createdRestaurantIds]);
+  }
   await new Promise((resolve) => server.close(resolve));
   await pool.end();
 });
@@ -57,6 +67,7 @@ async function insertRestaurant({ name, cost_per_person, avg_satisfaction_score 
     'INSERT INTO restaurants (name, cost_per_person, avg_satisfaction_score) VALUES ($1,$2,$3) RETURNING id',
     [name, cost_per_person, avg_satisfaction_score]
   );
+  createdRestaurantIds.push(result.rows[0].id);
   return result.rows[0].id;
 }
 
@@ -65,6 +76,7 @@ async function insertFinishedEvent(event_date, confirmed_restaurant_id) {
     "INSERT INTO events (event_date, headcount, status, confirmed_restaurant_id) VALUES ($1,$2,'종료',$3) RETURNING id",
     [event_date, 4, confirmed_restaurant_id]
   );
+  createdEventIds.push(result.rows[0].id);
   return result.rows[0].id;
 }
 

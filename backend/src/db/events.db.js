@@ -18,4 +18,12 @@ async function updateStatus(id, newStatus) {
   return result.rows[0];
 }
 
-module.exports = { insertEvent, findById, updateStatus };
+async function confirmRestaurant(id, restaurantId) {
+  const result = await pool.query(
+    "UPDATE events SET confirmed_restaurant_id = $2, status = '확정' WHERE id = $1 RETURNING *",
+    [id, restaurantId]
+  );
+  return result.rows[0];
+}
+
+module.exports = { insertEvent, findById, updateStatus, confirmRestaurant };

@@ -41,6 +41,18 @@ router.post('/:id/close', authMiddleware, requireRole('팀장'), async (req, res
   }
 });
 
+router.post('/:id/confirm', authMiddleware, requireRole('팀장'), async (req, res) => {
+  try {
+    const event = await eventService.confirmEvent(req.params.id, req.body.restaurant_id);
+    res.status(200).json(event);
+  } catch (err) {
+    if (err instanceof eventService.EventError) {
+      return res.status(err.status).json({ message: err.message });
+    }
+    throw err;
+  }
+});
+
 router.get('/:id/recommendations', authMiddleware, async (req, res) => {
   try {
     const result = await recommendService.getRecommendations(req.params.id);
