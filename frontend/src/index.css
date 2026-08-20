@@ -17,6 +17,10 @@ body {
   color: #c00;
 }
 
+.success-message {
+  color: #080;
+}
+
 @media (max-width: 768px) {
   .form-container {
     padding: 1rem;

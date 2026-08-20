@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { LoginPage } from './pages/LoginPage';
 import { EventFormPage } from './pages/EventFormPage';
+import { PreferenceFormPage } from './pages/PreferenceFormPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { AppLayout } from './components/AppLayout';
 
 function App() {
   return (
@@ -12,7 +14,19 @@ function App() {
           path="/"
           element={
             <ProtectedRoute>
-              <EventFormPage />
+              <AppLayout>
+                <EventFormPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/preferences"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <PreferenceFormPage />
+              </AppLayout>
             </ProtectedRoute>
           }
         />
