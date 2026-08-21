@@ -58,28 +58,34 @@ export function EventFormPage() {
     return (
       <div className="form-container">
         <h1>회식 일정</h1>
-        <div>
-          <label>날짜</label>
-          <p>{event.event_date}</p>
+        <div className="card">
+          <div>
+            <label>날짜</label>
+            <p>{event.event_date}</p>
+          </div>
+          <div>
+            <label>1인당 예산</label>
+            <p>{event.budget_per_person != null ? `${event.budget_per_person.toLocaleString()}원` : '미입력'}</p>
+          </div>
+          <div>
+            <label>인원</label>
+            <p>{event.headcount}명</p>
+          </div>
+          <div>
+            <label>상태</label>
+            <p>
+              <span className="status-badge" data-status={event.status}>
+                {event.status}
+              </span>
+            </p>
+          </div>
+          {role === '팀장' && event.status === '확정' && (
+            <button type="button" onClick={handleClose}>
+              회식 종료 처리
+            </button>
+          )}
+          {error && <p className="error-message">{error}</p>}
         </div>
-        <div>
-          <label>1인당 예산</label>
-          <p>{event.budget_per_person != null ? `${event.budget_per_person}원` : '미입력'}</p>
-        </div>
-        <div>
-          <label>인원</label>
-          <p>{event.headcount}명</p>
-        </div>
-        <div>
-          <label>상태</label>
-          <p>{event.status}</p>
-        </div>
-        {role === '팀장' && event.status === '확정' && (
-          <button type="button" onClick={handleClose}>
-            회식 종료 처리
-          </button>
-        )}
-        {error && <p className="error-message">{error}</p>}
       </div>
     );
   }

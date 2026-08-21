@@ -21,31 +21,33 @@ export function LoginPage() {
   }
 
   return (
-    <div className="form-container">
-      <h1>TeamBab</h1>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="login_id">아이디</label>
-          <input
-            id="login_id"
-            value={loginId}
-            onChange={(e) => setLoginId(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label htmlFor="password">비밀번호</label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        <button type="submit">로그인</button>
-        {error && <p className="error-message">{error}</p>}
-      </form>
+    <div className="auth-page">
+      <div className="form-container">
+        <h1>TeamBab</h1>
+        <form onSubmit={handleSubmit}>
+          <div>
+            <label htmlFor="login_id">아이디</label>
+            <input
+              id="login_id"
+              value={loginId}
+              onChange={(e) => setLoginId(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="password">비밀번호</label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <button type="submit">로그인</button>
+          {error && <p className="error-message">{error}</p>}
+        </form>
+      </div>
     </div>
   );
 }

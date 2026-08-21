@@ -78,9 +78,14 @@ export function RecommendationPage() {
     return (
       <div className="form-container">
         <h1>추천 결과</h1>
-        <p className="success-message">
-          {confirmedName} 식당으로 확정되었습니다. 상태: {confirmed.status}
-        </p>
+        <div className="card">
+          <p className="success-message">
+            {confirmedName} 식당으로 확정되었습니다. 상태:{' '}
+            <span className="status-badge" data-status={confirmed.status}>
+              {confirmed.status}
+            </span>
+          </p>
+        </div>
       </div>
     );
   }
@@ -101,15 +106,17 @@ export function RecommendationPage() {
         <h1>추천 결과</h1>
         <p>{message}</p>
         {role === '팀장' && (
-          <form onSubmit={handleManualSubmit}>
-            <label htmlFor="manual_restaurant_id">식당 ID로 수동 확정</label>
-            <input
-              id="manual_restaurant_id"
-              type="number"
-              value={manualRestaurantId}
-              onChange={(e) => setManualRestaurantId(e.target.value)}
-              required
-            />
+          <form className="card" onSubmit={handleManualSubmit}>
+            <div>
+              <label htmlFor="manual_restaurant_id">식당 ID로 수동 확정</label>
+              <input
+                id="manual_restaurant_id"
+                type="number"
+                value={manualRestaurantId}
+                onChange={(e) => setManualRestaurantId(e.target.value)}
+                required
+              />
+            </div>
             <button type="submit" disabled={confirming}>
               확정
             </button>
@@ -121,7 +128,7 @@ export function RecommendationPage() {
   }
 
   return (
-    <div className="form-container">
+    <div className="page">
       <h1>추천 결과</h1>
       <div className="restaurant-card-list">
         {recommendations.map((rec) => (
