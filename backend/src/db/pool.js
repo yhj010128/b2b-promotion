@@ -12,7 +12,10 @@ function resolveConnectionString() {
   return connectionString;
 }
 
-const pool = new Pool({ connectionString: resolveConnectionString() });
+const pool = new Pool({
+  connectionString: resolveConnectionString(),
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+});
 
 module.exports.pool = pool;
 module.exports.resolveConnectionString = resolveConnectionString;
