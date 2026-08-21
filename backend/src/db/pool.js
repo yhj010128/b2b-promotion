@@ -15,6 +15,7 @@ function resolveConnectionString() {
 const pool = new Pool({
   connectionString: resolveConnectionString(),
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+  connectionTimeoutMillis: 10000,
 });
 
 module.exports.pool = pool;
